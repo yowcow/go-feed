@@ -5,7 +5,7 @@ go:
   - master
 
 before_script:
-  - go get https://github.com/mattn/gom
+  - go get github.com/mattn/gom
   - make
 
 script:
