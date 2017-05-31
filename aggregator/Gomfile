@@ -1,0 +1,4 @@
+
+group :test do
+  gom 'github.com/stretchr/testify', :commit => '4d4bfba8f1d1027c4fdbe371823030df51419987'
+end

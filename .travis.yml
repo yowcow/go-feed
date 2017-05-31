@@ -1,0 +1,12 @@
+language: go
+
+go:
+  - 1.x
+  - master
+
+before_script:
+  - go get https://github.com/mattn/gom
+  - make
+
+script:
+  - make test
