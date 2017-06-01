@@ -8,7 +8,7 @@ RESET   := \033[m
 all: gom urls.json build
 
 gom: Gomfile
-	gom install
+	gom -test install
 
 urls.json:
 	echo "[\n]" > $@
