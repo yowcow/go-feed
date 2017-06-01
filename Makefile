@@ -1,3 +1,5 @@
+.PHONY: all test
+
 all:
 	make -C ./aggregator
 
