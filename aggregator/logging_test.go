@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-func TestLog(t *testing.T) {
+func TestLogging(t *testing.T) {
 	assert := assert.New(t)
 
 	f, e := ioutil.TempFile("", "test-log")
@@ -15,12 +15,12 @@ func TestLog(t *testing.T) {
 
 	assert.Nil(e)
 
-	logger := NewLogger(f)
-	logger.Log("あ", "111")
-	logger.Log("い", "222")
-	logger.Log("foo", "333")
-	logger.Log("bar", "444")
-	logger.Close()
+	logging := NewLogging(f)
+	logging.Log("あ", "111")
+	logging.Log("い", "222")
+	logging.Log("foo", "333")
+	logging.Log("bar", "444")
+	logging.Close()
 
 	content, _ := ioutil.ReadFile(f.Name())
 

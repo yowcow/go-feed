@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-type Log struct {
+type Logging struct {
 	file *os.File
 }
 
@@ -17,11 +17,11 @@ var bufPool = sync.Pool{
 	},
 }
 
-func NewLogger(file *os.File) *Log {
-	return &Log{file}
+func NewLogging(file *os.File) *Logging {
+	return &Logging{file}
 }
 
-func (self *Log) Log(title, link string) {
+func (self *Logging) Log(title, link string) {
 	b := bufPool.Get().(*bytes.Buffer)
 	defer bufPool.Put(b)
 
@@ -36,6 +36,6 @@ func (self *Log) Log(title, link string) {
 	self.file.Write(b.Bytes())
 }
 
-func (self *Log) Close() error {
+func (self *Logging) Close() error {
 	return self.file.Close()
 }
