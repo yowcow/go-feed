@@ -1,4 +1,4 @@
-.PHONY: all build gom clean test
+.PHONY: build gom clean test
 
 BINARY  := aggregator
 
