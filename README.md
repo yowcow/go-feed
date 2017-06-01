@@ -3,5 +3,7 @@
 go-feed
 =======
 
+Playing around with feeds on the Internet.
+
 + [Aggregation](aggregator)
 + Generation
