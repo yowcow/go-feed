@@ -1,0 +1,5 @@
+gom 'github.com/gorilla/feeds', :commit => '716510dd3ff3f09c377efaf9a060c4e9aa4d209e'
+
+group :test do
+  gom 'github.com/stretchr/testify', :commit => 'f6abca593680b2315d2075e0f5e2a9751e3f431a'
+end
