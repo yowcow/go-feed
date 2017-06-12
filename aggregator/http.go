@@ -6,7 +6,10 @@ import (
 )
 
 func HttpGet(url string) ([]byte, error) {
-	resp, err := http.Get(url)
+	client := new(http.Client)
+	req, err := http.NewRequest("GET", url, nil)
+	req.Header.Add("User-Agent", "GoClient/0.1")
+	resp, err := client.Do(req)
 
 	if err != nil {
 		return nil, err
