@@ -2,6 +2,7 @@ package aggregator
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"sync"
 	"time"
@@ -38,4 +39,16 @@ func (self *Logging) Log(title, link string) {
 
 func (self *Logging) Close() error {
 	return self.file.Close()
+}
+
+func LoggingWorker(id int, logging *Logging, wg *sync.WaitGroup, q chan *RssItem) {
+	defer wg.Done()
+	name := fmt.Sprintf("[Worker %d]", id)
+	for {
+		item, ok := <-q
+		if !ok {
+			return
+		}
+		logging.Log(item.Title, name)
+	}
 }
