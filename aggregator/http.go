@@ -3,6 +3,7 @@ package aggregator
 import (
 	"io/ioutil"
 	"net/http"
+	"sync"
 )
 
 func HttpGet(url string) ([]byte, error) {
@@ -24,4 +25,19 @@ func HttpGet(url string) ([]byte, error) {
 	}
 
 	return body, nil
+}
+
+func HttpWorker(id int, wg *sync.WaitGroup, iq chan string, oq chan []byte) {
+	defer wg.Done()
+	for {
+		url, ok := <-iq
+		if !ok {
+			return
+		}
+		body, err := HttpGet(url)
+		if err != nil {
+			panic(err)
+		}
+		oq <- body
+	}
 }

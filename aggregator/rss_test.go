@@ -49,18 +49,18 @@ func TestRssParserWorker(t *testing.T) {
 
 	for i := 0; i < 2; i++ {
 		testwg.Add(1)
-		go func() {
-			defer testwg.Done()
+		go func(w *sync.WaitGroup, m *sync.Mutex, c *int) {
+			defer w.Done()
 			for {
 				_, ok := <-oq
 				if !ok {
 					return
 				}
-				testmutex.Lock()
-				count += 1
-				testmutex.Unlock()
+				m.Lock()
+				*c += 1
+				m.Unlock()
 			}
-		}()
+		}(testwg, testmutex, &count)
 	}
 
 	for i := 0; i < 10; i++ {
