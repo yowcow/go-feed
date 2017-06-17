@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
+	"sync"
 	"time"
 )
 
@@ -27,46 +28,8 @@ func Run(configFile, outputFile string) {
 	}
 }
 
-func worker(id int, logging *Logging, jobChan chan string, resChan chan int) {
-	for url := range jobChan {
-		fmt.Printf("Worker (%d): Start working on %s\n", id, url)
-
-		rssXml, err := HttpGet(url)
-
-		if err == nil {
-			fmt.Printf("Worker (%d): Successfully got response\n", id)
-
-			rssData := ParseRss(rssXml)
-
-			fmt.Printf("Worker (%d): Successfully parsed RSS\n", id)
-
-			count := 0
-
-			for _, item := range rssData.Items {
-				logging.Log(item.Link, item.Title)
-				count += 1
-			}
-
-			fmt.Printf("Worker (%d): Successfully logged %d items\n", id, count)
-
-			resChan <- count
-		} else {
-			fmt.Printf("Worker (%d): Failed getting response from %s (%s)\n", id, url, err)
-
-			resChan <- -1
-		}
-	}
-}
-
 func run(urls []string, logging *Logging) {
 	defer logging.Close()
-
-	jobChan := make(chan string, len(urls))
-	resChan := make(chan int, len(urls))
-
-	for w := 1; w <= 4; w++ {
-		go worker(w, logging, jobChan, resChan)
-	}
 
 	rand.Seed(time.Now().UnixNano())
 
@@ -75,13 +38,39 @@ func run(urls []string, logging *Logging) {
 		urls[i], urls[j] = urls[j], urls[i]
 	}
 
+	httpwg := &sync.WaitGroup{}
+	rsswg := &sync.WaitGroup{}
+	loggingwg := &sync.WaitGroup{}
+
+	feedurlch := make(chan string)
+	httpbodych := make(chan []byte)
+	rssitemch := make(chan *RssItem)
+
+	for i := 0; i < 4; i++ {
+		httpwg.Add(1)
+		go HttpWorker(i+1, httpwg, feedurlch, httpbodych)
+	}
+
+	for i := 0; i < 4; i++ {
+		rsswg.Add(1)
+		go RssParserWorker(i+1, rsswg, httpbodych, rssitemch)
+	}
+
+	for i := 0; i < 4; i++ {
+		loggingwg.Add(1)
+		go LoggingWorker(i+1, loggingwg, rssitemch, logging)
+	}
+
 	for _, url := range urls {
-		jobChan <- url
+		feedurlch <- url
 	}
 
-	close(jobChan)
+	close(feedurlch)
+	httpwg.Wait()
 
-	for i := 0; i < len(urls); i++ {
-		fmt.Printf("Main (%d): Logged item count %d\n", i, <-resChan)
-	}
+	close(httpbodych)
+	rsswg.Wait()
+
+	close(rssitemch)
+	loggingwg.Wait()
 }

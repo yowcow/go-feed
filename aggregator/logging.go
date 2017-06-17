@@ -2,6 +2,7 @@ package aggregator
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"sync"
 	"time"
@@ -40,11 +41,13 @@ func (self *Logging) Close() error {
 	return self.file.Close()
 }
 
-func LoggingWorker(id int, logging *Logging, wg *sync.WaitGroup, q chan *RssItem) {
+func LoggingWorker(id int, wg *sync.WaitGroup, q chan *RssItem, logging *Logging) {
 	defer wg.Done()
+	name := fmt.Sprintf("[Logging Worker %d]", id)
 	for {
 		item, ok := <-q
 		if !ok {
+			fmt.Println(name, "Exiting")
 			return
 		}
 		logging.Log(item.Title, item.Link)

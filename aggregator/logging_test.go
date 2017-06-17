@@ -51,7 +51,7 @@ func TestLoggingWorker(t *testing.T) {
 
 	for i := 0; i < 6; i++ {
 		wg.Add(1)
-		go LoggingWorker(i+1, logging, wg, q)
+		go LoggingWorker(i+1, wg, q, logging)
 	}
 
 	for i := 0; i < 20; i++ {
