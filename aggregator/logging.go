@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-type Logging struct {
+type Logger struct {
 	file *os.File
 }
 
@@ -18,11 +18,11 @@ var bufPool = sync.Pool{
 	},
 }
 
-func NewLogging(file *os.File) *Logging {
-	return &Logging{file}
+func NewLogger(file *os.File) *Logger {
+	return &Logger{file}
 }
 
-func (self *Logging) Log(title, link string) {
+func (self *Logger) Log(title, link string) {
 	b := bufPool.Get().(*bytes.Buffer)
 	defer bufPool.Put(b)
 
@@ -37,19 +37,25 @@ func (self *Logging) Log(title, link string) {
 	self.file.Write(b.Bytes())
 }
 
-func (self *Logging) Close() error {
+func (self *Logger) Close() error {
 	return self.file.Close()
 }
 
-func LoggingWorker(id int, wg *sync.WaitGroup, q chan *RssItem, logging *Logging) {
-	defer wg.Done()
+type LoggerQueue struct {
+	Wg  *sync.WaitGroup
+	In  chan RssItem
+	Out *Logger
+}
+
+func LoggerWorker(id int, q LoggerQueue) {
+	defer q.Wg.Done()
 	name := fmt.Sprintf("[Logging Worker %d]", id)
 	for {
-		item, ok := <-q
+		item, ok := <-q.In
 		if !ok {
 			fmt.Println(name, "Exiting")
 			return
 		}
-		logging.Log(item.Title, item.Link)
+		q.Out.Log(item.Title, item.Link)
 	}
 }

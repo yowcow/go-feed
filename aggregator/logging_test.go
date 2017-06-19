@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestLogging(t *testing.T) {
+func TestLogger(t *testing.T) {
 	assert := assert.New(t)
 
 	f, e := ioutil.TempFile("", "test-log")
@@ -20,12 +20,12 @@ func TestLogging(t *testing.T) {
 
 	assert.Nil(e)
 
-	logging := NewLogging(f)
-	logging.Log("あ", "111")
-	logging.Log("い", "222")
-	logging.Log("foo", "333")
-	logging.Log("bar", "444")
-	logging.Close()
+	logger := NewLogger(f)
+	logger.Log("あ", "111")
+	logger.Log("い", "222")
+	logger.Log("foo", "333")
+	logger.Log("bar", "444")
+	logger.Close()
 
 	content, _ := ioutil.ReadFile(f.Name())
 
@@ -37,7 +37,7 @@ func TestLogging(t *testing.T) {
 	}
 }
 
-func TestLoggingWorker(t *testing.T) {
+func TestLoggerWorker(t *testing.T) {
 	assert := assert.New(t)
 
 	f, e := ioutil.TempFile("", "test-log")
@@ -45,21 +45,23 @@ func TestLoggingWorker(t *testing.T) {
 
 	assert.Nil(e)
 
-	logging := NewLogging(f)
-	wg := &sync.WaitGroup{}
-	q := make(chan *RssItem)
+	logqueue := LoggerQueue{
+		Wg:  &sync.WaitGroup{},
+		In:  make(chan RssItem),
+		Out: NewLogger(f),
+	}
 
 	for i := 0; i < 6; i++ {
-		wg.Add(1)
-		go LoggingWorker(i+1, wg, q, logging)
+		logqueue.Wg.Add(1)
+		go LoggerWorker(i+1, logqueue)
 	}
 
 	for i := 0; i < 20; i++ {
-		q <- &RssItem{fmt.Sprintf("Title%d", i), ""}
+		logqueue.In <- RssItem{fmt.Sprintf("Title%d", i), ""}
 	}
 
-	close(q)
-	wg.Wait()
+	close(logqueue.In)
+	logqueue.Wg.Wait()
 
 	content, _ := ioutil.ReadFile(f.Name())
 	lines := strings.Split(string(content), "\n")

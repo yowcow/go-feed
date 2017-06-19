@@ -12,20 +12,26 @@ type RssItem struct {
 }
 
 type Rss struct {
-	Items []*RssItem `xml:"item"`
+	Items []RssItem `xml:"item"`
 }
 
-func ParseRss(data []byte) *Rss {
+func ParseRss(data []byte) Rss {
 	rss := Rss{}
 	xml.Unmarshal(data, &rss)
-	return &rss
+	return rss
 }
 
-func RssParserWorker(id int, wg *sync.WaitGroup, iq chan []byte, oq chan *RssItem) {
-	defer wg.Done()
+type RssQueue struct {
+	Wg  *sync.WaitGroup
+	In  chan []byte
+	Out chan RssItem
+}
+
+func RssWorker(id int, q RssQueue) {
+	defer q.Wg.Done()
 	name := fmt.Sprintf("[RSS Parser Worker %d]", id)
 	for {
-		data, ok := <-iq
+		data, ok := <-q.In
 		if !ok {
 			fmt.Println(name, "Exiting")
 			return
@@ -33,7 +39,7 @@ func RssParserWorker(id int, wg *sync.WaitGroup, iq chan []byte, oq chan *RssIte
 		fmt.Println(name, "Got XML to parse")
 		rss := ParseRss(data)
 		for _, item := range rss.Items {
-			oq <- item
+			q.Out <- item
 		}
 	}
 }

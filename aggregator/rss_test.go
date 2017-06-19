@@ -33,45 +33,50 @@ func TestParseRss(t *testing.T) {
 	assert.Equal("http://hogefuga.com", data.Items[1].Link)
 }
 
-func TestRssParserWorker(t *testing.T) {
-	wg := &sync.WaitGroup{}
-	iq := make(chan []byte)
-	oq := make(chan *RssItem)
-
-	for i := 0; i < 4; i++ {
-		wg.Add(1)
-		go RssParserWorker(i+1, wg, iq, oq)
+func TestRssWorker(t *testing.T) {
+	rssqueue := RssQueue{
+		Wg:  &sync.WaitGroup{},
+		In:  make(chan []byte),
+		Out: make(chan RssItem),
 	}
 
-	testmutex := &sync.Mutex{}
-	testwg := &sync.WaitGroup{}
-	count := 0
+	for i := 0; i < 4; i++ {
+		rssqueue.Wg.Add(1)
+		go RssWorker(i+1, rssqueue)
+	}
+
+	type TestQueue struct {
+		Wg    *sync.WaitGroup
+		Mutex *sync.Mutex
+		Count int
+	}
+	testqueue := TestQueue{&sync.WaitGroup{}, &sync.Mutex{}, 0}
 
 	for i := 0; i < 2; i++ {
-		testwg.Add(1)
-		go func(w *sync.WaitGroup, m *sync.Mutex, c *int) {
-			defer w.Done()
+		testqueue.Wg.Add(1)
+		go func(q RssQueue, tq *TestQueue) {
+			defer tq.Wg.Done()
 			for {
-				_, ok := <-oq
+				_, ok := <-q.Out
 				if !ok {
 					return
 				}
-				m.Lock()
-				*c += 1
-				m.Unlock()
+				tq.Mutex.Lock()
+				tq.Count += 1
+				tq.Mutex.Unlock()
 			}
-		}(testwg, testmutex, &count)
+		}(rssqueue, &testqueue)
 	}
 
 	for i := 0; i < 10; i++ {
-		iq <- []byte(rssXml)
+		rssqueue.In <- []byte(rssXml)
 	}
 
-	close(iq)
-	wg.Wait()
+	close(rssqueue.In)
+	rssqueue.Wg.Wait()
 
-	close(oq)
-	testwg.Wait()
+	close(rssqueue.Out)
+	testqueue.Wg.Wait()
 
-	assert.Equal(t, 20, count)
+	assert.Equal(t, 20, testqueue.Count)
 }

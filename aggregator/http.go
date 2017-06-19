@@ -28,11 +28,17 @@ func HttpGet(url string) ([]byte, error) {
 	return body, nil
 }
 
-func HttpWorker(id int, wg *sync.WaitGroup, iq chan string, oq chan []byte) {
-	defer wg.Done()
+type HttpQueue struct {
+	Wg  *sync.WaitGroup
+	In  chan string
+	Out chan []byte
+}
+
+func HttpWorker(id int, q HttpQueue) {
+	defer q.Wg.Done()
 	name := fmt.Sprintf("[HTTP Worker %d]", id)
 	for {
-		url, ok := <-iq
+		url, ok := <-q.In
 		if !ok {
 			fmt.Println(name, "Exiting")
 			return
@@ -42,6 +48,6 @@ func HttpWorker(id int, wg *sync.WaitGroup, iq chan string, oq chan []byte) {
 		if err != nil {
 			panic(err)
 		}
-		oq <- body
+		q.Out <- body
 	}
 }

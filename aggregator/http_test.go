@@ -16,44 +16,49 @@ func TestHttpGet(t *testing.T) {
 }
 
 func TestHttpWorker(t *testing.T) {
-	wg := &sync.WaitGroup{}
-	iq := make(chan string)
-	oq := make(chan []byte)
-
-	for i := 0; i < 4; i++ {
-		wg.Add(1)
-		go HttpWorker(i+1, wg, iq, oq)
+	httpqueue := HttpQueue{
+		Wg:  &sync.WaitGroup{},
+		In:  make(chan string),
+		Out: make(chan []byte),
 	}
 
-	testwg := &sync.WaitGroup{}
-	testmutex := &sync.Mutex{}
-	count := 0
+	for i := 0; i < 4; i++ {
+		httpqueue.Wg.Add(1)
+		go HttpWorker(i+1, httpqueue)
+	}
+
+	type TestQueue struct {
+		Wg    *sync.WaitGroup
+		Mutex *sync.Mutex
+		Count int
+	}
+	testqueue := TestQueue{&sync.WaitGroup{}, &sync.Mutex{}, 0}
 
 	for i := 0; i < 2; i++ {
-		testwg.Add(1)
-		go func(w *sync.WaitGroup, m *sync.Mutex, c *int) {
-			defer w.Done()
+		testqueue.Wg.Add(1)
+		go func(q HttpQueue, tq *TestQueue) {
+			defer testqueue.Wg.Done()
 			for {
-				_, ok := <-oq
+				_, ok := <-q.Out
 				if !ok {
 					return
 				}
-				m.Lock()
-				*c += 1
-				m.Unlock()
+				tq.Mutex.Lock()
+				tq.Count += 1
+				tq.Mutex.Unlock()
 			}
-		}(testwg, testmutex, &count)
+		}(httpqueue, &testqueue)
 	}
 
 	for i := 0; i < 10; i++ {
-		iq <- "http://www.beaconsco.com/"
+		httpqueue.In <- "http://www.beaconsco.com/"
 	}
 
-	close(iq)
-	wg.Wait()
+	close(httpqueue.In)
+	httpqueue.Wg.Wait()
 
-	close(oq)
-	testwg.Wait()
+	close(httpqueue.Out)
+	testqueue.Wg.Wait()
 
-	assert.Equal(t, 10, count)
+	assert.Equal(t, 10, testqueue.Count)
 }

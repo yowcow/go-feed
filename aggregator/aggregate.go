@@ -15,7 +15,7 @@ func Run(configFile, outputFile string) {
 
 	if len(outputFile) == 0 {
 		fmt.Println("-- Writing output to STDOUT")
-		run(config, NewLogging(os.Stdout))
+		run(config, NewLogger(os.Stdout))
 	} else {
 		fmt.Println("-- Writing output to", outputFile)
 		f, err := os.Create(outputFile)
@@ -24,12 +24,12 @@ func Run(configFile, outputFile string) {
 			panic(fmt.Errorf("Failed opening output file to write", f, err))
 		}
 
-		run(config, NewLogging(f))
+		run(config, NewLogger(f))
 	}
 }
 
-func run(urls []string, logging *Logging) {
-	defer logging.Close()
+func run(urls []string, logger *Logger) {
+	defer logger.Close()
 
 	rand.Seed(time.Now().UnixNano())
 
@@ -38,39 +38,47 @@ func run(urls []string, logging *Logging) {
 		urls[i], urls[j] = urls[j], urls[i]
 	}
 
-	httpwg := &sync.WaitGroup{}
-	rsswg := &sync.WaitGroup{}
-	loggingwg := &sync.WaitGroup{}
-
-	feedurlch := make(chan string)
-	httpbodych := make(chan []byte)
-	rssitemch := make(chan *RssItem)
-
-	for i := 0; i < 4; i++ {
-		httpwg.Add(1)
-		go HttpWorker(i+1, httpwg, feedurlch, httpbodych)
+	httpqueue := HttpQueue{
+		Wg:  &sync.WaitGroup{},
+		In:  make(chan string),
+		Out: make(chan []byte),
+	}
+	rssqueue := RssQueue{
+		Wg:  &sync.WaitGroup{},
+		In:  httpqueue.Out,
+		Out: make(chan RssItem),
+	}
+	loggerqueue := LoggerQueue{
+		Wg:  &sync.WaitGroup{},
+		In:  rssqueue.Out,
+		Out: logger,
 	}
 
 	for i := 0; i < 4; i++ {
-		rsswg.Add(1)
-		go RssParserWorker(i+1, rsswg, httpbodych, rssitemch)
+		httpqueue.Wg.Add(1)
+		go HttpWorker(i+1, httpqueue)
 	}
 
 	for i := 0; i < 4; i++ {
-		loggingwg.Add(1)
-		go LoggingWorker(i+1, loggingwg, rssitemch, logging)
+		rssqueue.Wg.Add(1)
+		go RssWorker(i+1, rssqueue)
+	}
+
+	for i := 0; i < 4; i++ {
+		loggerqueue.Wg.Add(1)
+		go LoggerWorker(i+1, loggerqueue)
 	}
 
 	for _, url := range urls {
-		feedurlch <- url
+		httpqueue.In <- url
 	}
 
-	close(feedurlch)
-	httpwg.Wait()
+	close(httpqueue.In)
+	httpqueue.Wg.Wait()
 
-	close(httpbodych)
-	rsswg.Wait()
+	close(rssqueue.In)
+	rssqueue.Wg.Wait()
 
-	close(rssitemch)
-	loggingwg.Wait()
+	close(loggerqueue.In)
+	loggerqueue.Wg.Wait()
 }
