@@ -30,7 +30,7 @@ func TestLogger(t *testing.T) {
 	content, _ := ioutil.ReadFile(f.Name())
 
 	lines := strings.Split(string(content), "\n")
-	validLog := regexp.MustCompile(`^.{6}\s\d{2}\:\d{2}\:\d{2}\.\d{9}\s.+\s\d{3}$`) // Jun  2 09:52:38.382469767 あ 111
+	validLog := regexp.MustCompile(`^.{6}\s\d{2}\:\d{2}\:\d{2}\.\d{9}\s\d{3}\s.+$`) // Jun  2 09:52:38.382469767 111 あ
 
 	for _, line := range lines[:len(lines)-1] {
 		assert.True(validLog.MatchString(line), line)
