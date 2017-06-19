@@ -28,14 +28,12 @@ type RssQueue struct {
 }
 
 func RssWorker(id int, q RssQueue) {
-	defer q.Wg.Done()
-	name := fmt.Sprintf("[RSS Parser Worker %d]", id)
-	for {
-		data, ok := <-q.In
-		if !ok {
-			fmt.Println(name, "Exiting")
-			return
-		}
+	name := fmt.Sprintf("[RSS Worker %d]", id)
+	defer func() {
+		fmt.Println(name, "Exiting")
+		q.Wg.Done()
+	}()
+	for data := range q.In {
 		fmt.Println(name, "Got XML to parse")
 		rss := ParseRss(data)
 		for _, item := range rss.Items {

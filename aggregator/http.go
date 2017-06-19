@@ -35,14 +35,12 @@ type HttpQueue struct {
 }
 
 func HttpWorker(id int, q HttpQueue) {
-	defer q.Wg.Done()
 	name := fmt.Sprintf("[HTTP Worker %d]", id)
-	for {
-		url, ok := <-q.In
-		if !ok {
-			fmt.Println(name, "Exiting")
-			return
-		}
+	defer func() {
+		fmt.Println(name, "Exiting")
+		q.Wg.Done()
+	}()
+	for url := range q.In {
 		fmt.Println(name, "Got URL", url)
 		body, err := HttpGet(url)
 		if err != nil {

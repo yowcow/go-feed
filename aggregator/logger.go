@@ -29,9 +29,9 @@ func (self *Logger) Log(title, link string) {
 	b.Reset()
 	b.WriteString(time.Now().Format(time.StampNano))
 	b.WriteByte(' ')
-	b.WriteString(title)
-	b.WriteByte(' ')
 	b.WriteString(link)
+	b.WriteByte(' ')
+	b.WriteString(title)
 	b.WriteString("\n")
 
 	self.file.Write(b.Bytes())
@@ -48,14 +48,12 @@ type LoggerQueue struct {
 }
 
 func LoggerWorker(id int, q LoggerQueue) {
-	defer q.Wg.Done()
-	name := fmt.Sprintf("[Logging Worker %d]", id)
-	for {
-		item, ok := <-q.In
-		if !ok {
-			fmt.Println(name, "Exiting")
-			return
-		}
+	name := fmt.Sprintf("[Logger Worker %d]", id)
+	defer func() {
+		fmt.Println(name, "Exiting")
+		q.Wg.Done()
+	}()
+	for item := range q.In {
 		q.Out.Log(item.Title, item.Link)
 	}
 }
