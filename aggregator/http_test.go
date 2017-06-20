@@ -1,21 +1,62 @@
 package aggregator
 
 import (
-	"github.com/stretchr/testify/assert"
+	"fmt"
+	"net/http"
 	"sync"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
+
+func startHttpServer(wg *sync.WaitGroup, ch chan struct{}) {
+	srvmux := &http.ServeMux{}
+	srvmux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		fmt.Fprint(w, r.Header.Get("User-Agent"))
+	})
+	server := &http.Server{
+		Addr:    ":8888",
+		Handler: srvmux,
+	}
+
+	defer func() {
+		server.Close()
+		wg.Done()
+	}()
+
+	go func() {
+		server.ListenAndServe()
+	}()
+
+	for _ = range ch {
+	}
+}
 
 func TestHttpGet(t *testing.T) {
 	assert := assert.New(t)
 
-	body, err := HttpGet("http://www.beaconsco.com")
+	wg := &sync.WaitGroup{}
+	ch := make(chan struct{})
+
+	wg.Add(1)
+	go startHttpServer(wg, ch)
+
+	body, err := HttpGet("http://localhost:8888/")
+
+	close(ch)
+	wg.Wait()
 
 	assert.Nil(err)
-	assert.True(len(body) > 0)
+	assert.Equal("GoClient/0.1", string(body))
 }
 
 func TestHttpWorker(t *testing.T) {
+	serverwg := &sync.WaitGroup{}
+	serverch := make(chan struct{})
+
+	serverwg.Add(1)
+	go startHttpServer(serverwg, serverch)
+
 	httpqueue := HttpQueue{
 		Wg:  &sync.WaitGroup{},
 		In:  make(chan string),
@@ -51,7 +92,7 @@ func TestHttpWorker(t *testing.T) {
 	}
 
 	for i := 0; i < 10; i++ {
-		httpqueue.In <- "http://www.beaconsco.com/"
+		httpqueue.In <- "http://localhost:8888/"
 	}
 
 	close(httpqueue.In)
@@ -59,6 +100,9 @@ func TestHttpWorker(t *testing.T) {
 
 	close(httpqueue.Out)
 	testqueue.Wg.Wait()
+
+	close(serverch)
+	serverwg.Wait()
 
 	assert.Equal(t, 10, testqueue.Count)
 }
