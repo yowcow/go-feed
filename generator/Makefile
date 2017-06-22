@@ -1,17 +1,14 @@
-.PHONY: all gom build test clean
+.PHONY: all build test clean
 
 BINARY := generator
 
-all: gom build
-
-gom: Gomfile
-	gom -test install
+all: build
 
 build:
-	cd main && gom build -o ../$(BINARY)
-
-clean:
-	rm -rf $(BINARY) vendor
+	cd main && go build -o ../$(BINARY)
 
 test:
-	gom test -v
+	go test -v
+
+clean:
+	rm -rf $(BINARY)

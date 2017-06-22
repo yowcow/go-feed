@@ -1,20 +1,17 @@
 .PHONY: build gom clean test
 
-BINARY  := aggregator
+BINARY := aggregator
 
-all: gom urls.json build
-
-gom: Gomfile
-	gom -test install
+all: urls.json build
 
 urls.json:
 	echo "[\n]" > $@
 
 build:
-	cd main && gom build -o ../$(BINARY)
-
-clean:
-	rm -rf aggregator vendor
+	cd main && go build -o ../$(BINARY)
 
 test:
-	gom test -v
+	go test -v
+
+clean:
+	rm -rf $(BINARY)
