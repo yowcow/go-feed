@@ -5,8 +5,8 @@ go:
   - master
 
 before_script:
-  - go get github.com/mattn/gom
-  - make
+  - go get github.com/tools/godep
+  - godep restore -v
 
 script:
   - make test
